@@ -2,6 +2,9 @@
 
 Rust Manager の拡張機能を有効にする Rust Dedicated Server 向け Carbon/Oxide プラグインです。
 
+This repository is source-available for installation only.
+Redistribution, copying into other repositories, and modified redistribution are prohibited.
+
 ## Download
 
 - [RustManager.cs](https://raw.githubusercontent.com/miyagawayuu/rustmanager-plugin/main/RustManager.cs)
@@ -61,3 +64,4 @@ oxide.reload RustManager
 ## Notes
 
 このリポジトリは `RustManager.cs` 配布専用です。Rust Manager 本体のソースコードは含みません。
+利用条件は [LICENSE](LICENSE) を確認してください。

@@ -1,0 +1,22 @@
+RustManager Plugin License
+
+Copyright (c) 2026 miyagawayuu. All rights reserved.
+
+Permission is granted to download and use RustManager.cs only for installing
+and running the official Rust Manager plugin on Rust Dedicated Server instances
+managed by Rust Manager.
+
+You may not:
+- redistribute, mirror, sell, sublicense, or republish this source code;
+- copy this source code into another public or private repository;
+- publish modified versions or derivative works;
+- use this source code as part of another product, service, plugin, or tool;
+- remove copyright or license notices.
+
+You may:
+- download one copy for your own Rust server;
+- make local configuration or deployment changes necessary to run the plugin
+  on your own server, provided those changes are not redistributed.
+
+This software is provided "as is", without warranty of any kind.
+The author is not liable for any damages arising from use of this software.

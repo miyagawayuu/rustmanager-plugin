@@ -7,7 +7,7 @@ Redistribution, copying into other repositories, and modified redistribution are
 
 ## Download
 
-- [RustManager.cs](https://raw.githubusercontent.com/miyagawayuu/rustmanager-plugin/main/RustManager.cs)
+- [RustManager.cs](https://raw.githubusercontent.com/miyagawayuu/rustmanager-plugin/master/RustManager.cs)
 
 ## Install
 

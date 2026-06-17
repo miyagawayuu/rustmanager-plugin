@@ -135,6 +135,7 @@ namespace Oxide.Plugins
                     "whitelist.clear",
                     "map.status",
                     "map.render",
+                    "map.events",
                     "trap.status",
                     "trap.enable",
                     "trap.logs",
@@ -525,6 +526,26 @@ namespace Oxide.Plugins
             {
                 type = "render_requested"
             }));
+        }
+
+        [ConsoleCommand("rustmanager.map.events")]
+        private void CommandMapEvents(ConsoleSystem.Arg arg)
+        {
+            const string command = "rustmanager.map.events";
+
+            if (!IsAllowed(arg))
+            {
+                Reply(arg, Error(command, "unauthorized"));
+                return;
+            }
+
+            Reply(arg, new
+            {
+                ok = true,
+                command,
+                generatedAt = GeneratedAt(),
+                events = GetLiveMapEvents()
+            });
         }
 
         [ConsoleCommand("rustmanager.trap.status")]
@@ -1575,6 +1596,65 @@ namespace Oxide.Plugins
             };
         }
 
+        private static List<object> GetLiveMapEvents()
+        {
+            return BaseNetworkable.serverEntities
+                .OfType<BaseEntity>()
+                .Where(entity => entity != null && !entity.IsDestroyed)
+                .Select(ToLiveMapEvent)
+                .Where(item => item != null)
+                .OrderBy(item => item.kind)
+                .ThenBy(item => item.entityId)
+                .Cast<object>()
+                .ToList();
+        }
+
+        private static LiveMapEventSnapshot ToLiveMapEvent(BaseEntity entity)
+        {
+            var shortPrefabName = (entity.ShortPrefabName ?? string.Empty).Trim();
+            var prefabName = (entity.PrefabName ?? string.Empty).Trim();
+            var className = entity.GetType().Name ?? string.Empty;
+            var shortLower = shortPrefabName.ToLowerInvariant();
+            var prefabLower = prefabName.ToLowerInvariant();
+            var classLower = className.ToLowerInvariant();
+
+            string kind = null;
+            string label = null;
+            if (classLower == "cargoship" || shortLower == "cargoshiptest")
+            {
+                kind = "cargoship";
+                label = "Cargo Ship";
+            }
+            else if (classLower.Contains("ch47") && classLower.Contains("helicopter"))
+            {
+                kind = "chinook";
+                label = "Chinook";
+            }
+            else if (classLower == "patrolhelicopter"
+                || classLower == "basehelicopter"
+                || prefabLower.EndsWith("/patrolhelicopter.prefab", StringComparison.OrdinalIgnoreCase)
+                || shortLower == "patrolhelicopter")
+            {
+                kind = "patrol_helicopter";
+                label = "Patrol Helicopter";
+            }
+
+            if (kind == null)
+            {
+                return null;
+            }
+
+            return new LiveMapEventSnapshot
+            {
+                kind = kind,
+                label = label,
+                entityId = entity.net.ID.ToString(),
+                prefab = string.IsNullOrEmpty(shortPrefabName) ? prefabName : shortPrefabName,
+                className = className,
+                position = PositionData(entity.transform.position)
+            };
+        }
+
         private static bool IsValidMapImageUrl(string url)
         {
             return !string.IsNullOrWhiteSpace(url)
@@ -2377,6 +2457,16 @@ namespace Oxide.Plugins
             public string shortname;
             public PositionSnapshot position;
             public string detectedAt;
+        }
+
+        private class LiveMapEventSnapshot
+        {
+            public string kind;
+            public string label;
+            public string entityId;
+            public string prefab;
+            public string className;
+            public PositionSnapshot position;
         }
 
         private class PositionSnapshot

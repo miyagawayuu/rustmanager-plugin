@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
-using System.Net.Http.Headers;
+using System.Net;
+using System.Text;
 using HarmonyLib;
 using Newtonsoft.Json;
 using Oxide.Core;
@@ -12,7 +12,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("RustManager", "RustManager", "0.2.0")]
+    [Info("RustManager", "RustManager", "0.2.1")]
     [Description("Command library for RustManager.")]
     public class RustManager : RustPlugin
     {
@@ -22,7 +22,7 @@ namespace Oxide.Plugins
         private const string ContainerBelt = "belt";
         private const string ContainerWear = "wear";
         private const string ContainerBackpack = "backpack";
-        private const string PluginVersion = "0.2.0";
+        private const string PluginVersion = "0.2.1";
         private const string WhitelistDataFile = "RustManagerWhitelist";
         private const string WhitelistRejectMessage = "You are not whitelisted on this server.";
         private const string MapDataFile = "RustManagerMap";
@@ -50,7 +50,6 @@ namespace Oxide.Plugins
         private PluginConfiguration pluginConfig;
         private Harmony harmony;
         private static RustManager Instance;
-        private static readonly HttpClient HttpClient = new HttpClient();
 
         private static readonly JsonSerializerSettings JsonSettings = new JsonSerializerSettings
         {
@@ -248,7 +247,7 @@ namespace Oxide.Plugins
             }
         }
 
-        private async void UploadMapImageToRustManager(byte[] image, int worldSize)
+        private void UploadMapImageToRustManager(byte[] image, int worldSize)
         {
             EnsurePluginConfig();
             var mapUpload = pluginConfig.mapUpload;
@@ -267,37 +266,65 @@ namespace Oxide.Plugins
 
             try
             {
-                using (var content = new ByteArrayContent(image))
+                using (var client = new WebClient())
                 {
-                    content.Headers.ContentType = new MediaTypeHeaderValue("image/png");
-                    using (var request = new HttpRequestMessage(HttpMethod.Post, uploadUrl))
+                    client.Headers[HttpRequestHeader.ContentType] = "image/png";
+                    client.Headers["X-RustManager-Key"] = serverKey;
+                    client.Headers["X-RustManager-World-Size"] = worldSize.ToString();
+
+                    var responseBytes = client.UploadData(uploadUrl, "POST", image);
+                    var text = Encoding.UTF8.GetString(responseBytes);
+                    var result = JsonConvert.DeserializeObject<MapUploadResponse>(text);
+                    if (IsValidMapImageUrl(result?.imageUrl))
                     {
-                        request.Content = content;
-                        request.Headers.Add("X-RustManager-Key", serverKey);
-                        request.Headers.Add("X-RustManager-World-Size", worldSize.ToString());
-
-                        using (var response = await HttpClient.SendAsync(request))
-                        {
-                            var text = await response.Content.ReadAsStringAsync();
-                            if (!response.IsSuccessStatusCode)
-                            {
-                                PrintWarning($"RustManager map upload failed: {(int)response.StatusCode} {response.ReasonPhrase}");
-                                return;
-                            }
-
-                            var result = JsonConvert.DeserializeObject<MapUploadResponse>(text);
-                            if (IsValidMapImageUrl(result?.imageUrl))
-                            {
-                                NextTick(() => StoreMapImageUrl(result.imageUrl));
-                            }
-                        }
+                        NextTick(() => StoreMapImageUrl(result.imageUrl));
                     }
                 }
+            }
+            catch (WebException ex)
+            {
+                PrintWarning("RustManager map upload failed: " + FormatWebException(ex));
             }
             catch (Exception ex)
             {
                 PrintWarning("RustManager map upload failed: " + ex.Message);
             }
+        }
+
+        private static string FormatWebException(WebException ex)
+        {
+            var response = ex.Response as HttpWebResponse;
+            if (response == null)
+            {
+                return ex.Message;
+            }
+
+            var detail = string.Empty;
+            try
+            {
+                using (var stream = response.GetResponseStream())
+                {
+                    if (stream != null)
+                    {
+                        using (var reader = new StreamReader(stream))
+                        {
+                            detail = reader.ReadToEnd();
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                detail = string.Empty;
+            }
+
+            var message = $"{(int)response.StatusCode} {response.StatusDescription}";
+            if (!string.IsNullOrWhiteSpace(detail))
+            {
+                message += ": " + detail;
+            }
+
+            return message;
         }
 
         private object CanUserLogin(string name, string id, string ipAddress)
